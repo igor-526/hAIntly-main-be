@@ -1,0 +1,9 @@
+from uuid import UUID
+
+ADMIN_ROLE_NAME = "admin"
+USER_ROLE_NAME = "user"
+
+ROLE_SEEDS = {
+    USER_ROLE_NAME: UUID("b7462a21-4cdc-4b06-b670-f28080a99062"),
+    ADMIN_ROLE_NAME: UUID("d8275822-16c6-4b6c-b676-5dc401c0d892"),
+}

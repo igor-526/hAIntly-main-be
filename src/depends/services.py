@@ -1,0 +1,31 @@
+from typing import Annotated
+
+from fastapi import Cookie, Depends
+
+from core.exceptions import InvalidCredentials
+from core.protocols.repositories import RoleRepositoryProtocol, UserRepositoryProtocol
+from core.schemas import UserOut
+from core.services import AuthService
+from depends.repositories import get_role_repository, get_user_repository
+from utils.security import Security
+
+
+def get_security() -> Security:
+    return Security()
+
+
+async def get_auth_service(
+    users: Annotated[UserRepositoryProtocol, Depends(get_user_repository)],
+    roles: Annotated[RoleRepositoryProtocol, Depends(get_role_repository)],
+    security: Annotated[Security, Depends(get_security)],
+) -> AuthService:
+    return AuthService(users=users, roles=roles, security=security)
+
+
+async def get_current_user(
+    service: Annotated[AuthService, Depends(get_auth_service)],
+    access_token: Annotated[str | None, Cookie()] = None,
+) -> UserOut:
+    if access_token is None:
+        raise InvalidCredentials("Требуется аутентификация")
+    return await service.current_user(token=access_token)
