@@ -1,6 +1,6 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -36,3 +36,6 @@ class UserRepository:
 
     async def assign_role(self, *, user_id: UUID, role_id: UUID) -> None:
         await self.session.execute(insert(user_roles).values(id=uuid4(), user_id=user_id, role_id=role_id))
+
+    async def set_active_hh_account(self, *, user_id: UUID, account_id: UUID | None) -> None:
+        await self.session.execute(update(users).where(users.c.id == user_id).values(active_hh_account_id=account_id))

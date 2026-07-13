@@ -1,6 +1,6 @@
 from functools import cached_property
 
-from pydantic import Field, model_validator
+from pydantic import AnyHttpUrl, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_minutes: int = Field(default=15, alias="ACCESS_TOKEN_MINUTES", gt=0)
     refresh_token_days: int = Field(default=7, alias="REFRESH_TOKEN_DAYS", gt=0)
+    oauth_state_minutes: int = Field(default=10, alias="OAUTH_STATE_MINUTES", gt=0)
+    profile_service_url: AnyHttpUrl = Field(alias="PROFILE_SERVICE_URL")
+    profile_service_timeout_seconds: float = Field(default=10, alias="PROFILE_SERVICE_TIMEOUT_SECONDS", gt=0)
 
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
@@ -30,6 +33,10 @@ class Settings(BaseSettings):
     postgres_db: str = Field(default="app", alias="POSTGRES_DB")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    def __init__(self) -> None:
+        """Load application configuration exclusively from settings sources."""
+        super().__init__()
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> Settings:
