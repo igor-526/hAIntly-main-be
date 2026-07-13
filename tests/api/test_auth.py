@@ -1,8 +1,10 @@
 from unittest.mock import AsyncMock
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 
+from core.exceptions import InvalidCredentials
 from core.schemas import AuthTokens, RoleOut, UserOut
 from depends.services import get_auth_service
 from main import app
@@ -107,17 +109,62 @@ def test_verify_uses_access_cookie_and_returns_user_dto() -> None:
     assert service.current_user.await_args.kwargs == {"token": "access"}
 
 
-def test_verify_requires_cookie_and_ignores_bearer_header() -> None:
+def test_verify_uses_service_bearer_and_user_header() -> None:
     service = AsyncMock()
+    service.current_service_user.return_value = USER
     app.dependency_overrides[get_auth_service] = lambda: service
     try:
-        response = TestClient(app).get("/api/auth/verify", headers={"Authorization": "Bearer access"})
+        response = TestClient(app).get(
+            "/api/auth/verify",
+            headers={"Authorization": "Bearer service-key", "X-User-Id": str(USER.id)},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == USER.model_dump(mode="json")
+    service.current_service_user.assert_awaited_once_with(service_key="service-key", user_id=str(USER.id))
+    service.current_user.assert_not_awaited()
+
+
+def test_verify_bearer_has_priority_and_never_falls_back_to_cookie() -> None:
+    service = AsyncMock()
+    service.current_service_user.side_effect = InvalidCredentials()
+    app.dependency_overrides[get_auth_service] = lambda: service
+    try:
+        client = TestClient(app)
+        client.cookies.set("access_token", "valid-cookie")
+        response = client.get(
+            "/api/auth/verify",
+            headers={"Authorization": "Bearer wrong", "X-User-Id": str(USER.id)},
+        )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 401
-    assert response.json() == {"detail": "Access-токен отсутствует"}
     service.current_user.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Authorization": "Basic service-key", "X-User-Id": str(USER.id)},
+        {"Authorization": "Bearer service-key"},
+        {"X-User-Id": str(USER.id)},
+        {"Authorization": "Bearer service-key", "X-User-Id": "not-a-uuid"},
+    ],
+)
+def test_verify_rejects_invalid_service_credentials_without_cookie_fallback(headers) -> None:
+    service = AsyncMock()
+    service.current_service_user.side_effect = InvalidCredentials()
+    app.dependency_overrides[get_auth_service] = lambda: service
+    try:
+        response = TestClient(app).get("/api/auth/verify", headers=headers)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Неверный email или пароль"}
 
 
 def test_refresh_requires_cookie_and_returns_string_detail() -> None:

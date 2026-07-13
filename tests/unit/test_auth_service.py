@@ -31,7 +31,7 @@ async def test_register_assigns_user_role(dependencies) -> None:
     users.create.return_value = user
     users.get_roles.return_value = [role]
     roles.get_by_name.return_value = role
-    service = AuthService(users=users, roles=roles, security=security)
+    service = AuthService(users=users, roles=roles, security=security, service_key="expected-key")
 
     result = await service.register(data=RegisterData(email="Tester@Example.com", password="password1"))
 
@@ -43,7 +43,7 @@ async def test_register_assigns_user_role(dependencies) -> None:
 async def test_register_rejects_duplicate_email(dependencies) -> None:
     users, roles, security = dependencies
     users.get_by_email.return_value = User(email="tester@example.com", password="hash")
-    service = AuthService(users=users, roles=roles, security=security)
+    service = AuthService(users=users, roles=roles, security=security, service_key="expected-key")
 
     with pytest.raises(AlreadyExistsError):
         await service.register(data=RegisterData(email="tester@example.com", password="password1"))
@@ -53,7 +53,7 @@ async def test_login_rejects_wrong_password(dependencies) -> None:
     users, roles, security = dependencies
     users.get_by_email.return_value = User(email="tester@example.com", password="hash")
     security.verify_password.return_value = False
-    service = AuthService(users=users, roles=roles, security=security)
+    service = AuthService(users=users, roles=roles, security=security, service_key="expected-key")
 
     with pytest.raises(InvalidCredentials):
         await service.login(data=LoginData(email="tester@example.com", password="wrong"))
@@ -61,7 +61,7 @@ async def test_login_rejects_wrong_password(dependencies) -> None:
 
 async def test_login_normalizes_email_and_rejects_unknown_user(dependencies) -> None:
     users, roles, security = dependencies
-    service = AuthService(users=users, roles=roles, security=security)
+    service = AuthService(users=users, roles=roles, security=security, service_key="expected-key")
 
     with pytest.raises(InvalidCredentials) as unknown_error:
         await service.login(data=LoginData(email="Tester@Example.com", password="password1"))
@@ -77,7 +77,33 @@ async def test_login_normalizes_email_and_rejects_unknown_user(dependencies) -> 
 async def test_refresh_rejects_access_token(dependencies) -> None:
     users, roles, security = dependencies
     security.decode_token.return_value = {"type": "access", "sub": str(uuid4()), "session_version": 1}
-    service = AuthService(users=users, roles=roles, security=security)
+    service = AuthService(users=users, roles=roles, security=security, service_key="expected-key")
 
     with pytest.raises(InvalidCredentials):
         await service.refresh(token="access-token")
+
+
+async def test_service_user_requires_key_uuid_and_existing_user(dependencies) -> None:
+    users, roles, security = dependencies
+    user = User(email="tester@example.com", password="hash")
+    role = Role(name="user")
+    users.get_by_id.return_value = user
+    users.get_roles.return_value = [role]
+    service = AuthService(users=users, roles=roles, security=security, service_key="expected-key")
+
+    result = await service.current_service_user(service_key="expected-key", user_id=str(user.id))
+
+    assert result.id == user.id
+    users.get_by_id.assert_awaited_once_with(user_id=user.id)
+
+    for key, user_id in (
+        ("wrong", str(user.id)),
+        ("неверный", str(user.id)),
+        ("expected-key", "invalid"),
+    ):
+        with pytest.raises(InvalidCredentials):
+            await service.current_service_user(service_key=key, user_id=user_id)
+
+    users.get_by_id.return_value = None
+    with pytest.raises(InvalidCredentials):
+        await service.current_service_user(service_key="expected-key", user_id=str(uuid4()))

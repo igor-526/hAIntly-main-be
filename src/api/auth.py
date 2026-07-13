@@ -5,7 +5,7 @@ from fastapi import APIRouter, Cookie, Depends, Response, status
 from core.exceptions import InvalidCredentials
 from core.schemas import LoginData, RegisterData, UserOut
 from core.services import AuthService
-from depends.services import get_auth_service
+from depends.services import get_auth_service, get_current_user
 from settings import settings
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -64,12 +64,9 @@ async def refresh(
 
 @router.get("/verify", response_model=UserOut)
 async def verify(
-    service: Annotated[AuthService, Depends(get_auth_service)],
-    access_token: Annotated[str | None, Cookie()] = None,
+    user: Annotated[UserOut, Depends(get_current_user)],
 ) -> UserOut:
-    if access_token is None:
-        raise InvalidCredentials("Access-токен отсутствует")
-    return await service.current_user(token=access_token)
+    return user
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

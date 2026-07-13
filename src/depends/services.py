@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Cookie, Depends
+from fastapi import Cookie, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.exceptions import InvalidCredentials
@@ -24,13 +24,27 @@ async def get_auth_service(
     roles: Annotated[RoleRepositoryProtocol, Depends(get_role_repository)],
     security: Annotated[Security, Depends(get_security)],
 ) -> AuthService:
-    return AuthService(users=users, roles=roles, security=security)
+    return AuthService(
+        users=users,
+        roles=roles,
+        security=security,
+        service_key=settings.main_be_service_key.get_secret_value(),
+    )
 
 
 async def get_current_user(
     service: Annotated[AuthService, Depends(get_auth_service)],
     access_token: Annotated[str | None, Cookie()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    x_user_id: Annotated[str | None, Header()] = None,
 ) -> UserOut:
+    if authorization is not None:
+        scheme, separator, service_key = authorization.partition(" ")
+        if scheme != "Bearer" or separator != " " or not service_key or x_user_id is None:
+            raise InvalidCredentials()
+        return await service.current_service_user(service_key=service_key, user_id=x_user_id)
+    if x_user_id is not None:
+        raise InvalidCredentials()
     if access_token is None:
         raise InvalidCredentials("Требуется аутентификация")
     return await service.current_user(token=access_token)

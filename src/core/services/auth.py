@@ -1,3 +1,4 @@
+import secrets
 from uuid import UUID
 
 from core.entities import User
@@ -15,10 +16,12 @@ class AuthService:
         users: UserRepositoryProtocol,
         roles: RoleRepositoryProtocol,
         security: SecurityProtocol,
+        service_key: str,
     ) -> None:
         self.users = users
         self.roles = roles
         self.security = security
+        self.service_key = service_key
 
     async def register(self, *, data: RegisterData) -> UserOut:
         email = str(data.email).strip().lower()
@@ -57,6 +60,18 @@ class AuthService:
         if payload.get("type") != "access":
             raise InvalidCredentials("Некорректный тип токена")
         return await self._to_output(user=await self._user_from_payload(payload=payload))
+
+    async def current_service_user(self, *, service_key: str, user_id: str) -> UserOut:
+        if not secrets.compare_digest(service_key.encode(), self.service_key.encode()):
+            raise InvalidCredentials()
+        try:
+            parsed_user_id = UUID(user_id)
+        except (TypeError, ValueError) as exc:
+            raise InvalidCredentials() from exc
+        user = await self.users.get_by_id(user_id=parsed_user_id)
+        if user is None:
+            raise InvalidCredentials()
+        return await self._to_output(user=user)
 
     async def _user_from_payload(self, *, payload: dict[str, object]) -> User:
         try:

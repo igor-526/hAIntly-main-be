@@ -15,6 +15,32 @@ def test_profile_service_url_is_required(monkeypatch: pytest.MonkeyPatch, tmp_pa
         Settings()
 
 
+@pytest.mark.parametrize("value", [None, ""])
+def test_main_be_service_key_is_required_and_non_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str | None
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PROFILE_SERVICE_URL", "http://profile.invalid")
+    if value is None:
+        monkeypatch.delenv("MAIN_BE_SERVICE_KEY", raising=False)
+    else:
+        monkeypatch.setenv("MAIN_BE_SERVICE_KEY", value)
+
+    with pytest.raises(ValidationError, match="MAIN_BE_SERVICE_KEY"):
+        Settings()
+
+
+def test_main_be_service_key_accepts_valid_secret(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PROFILE_SERVICE_URL", "http://profile.invalid")
+    monkeypatch.setenv("MAIN_BE_SERVICE_KEY", "runtime-test-secret")
+
+    configured = Settings()
+
+    assert configured.main_be_service_key.get_secret_value() == "runtime-test-secret"
+    assert "runtime-test-secret" not in repr(configured.main_be_service_key)
+
+
 @pytest.mark.parametrize("value", ["profile-service:8000", "ftp://profile-service/internal", "not a url"])
 def test_profile_service_url_must_be_absolute_http_url(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str

@@ -1,6 +1,6 @@
 from functools import cached_property
 
-from pydantic import AnyHttpUrl, Field, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     oauth_state_minutes: int = Field(default=10, alias="OAUTH_STATE_MINUTES", gt=0)
     profile_service_url: AnyHttpUrl = Field(alias="PROFILE_SERVICE_URL")
     profile_service_timeout_seconds: float = Field(default=10, alias="PROFILE_SERVICE_TIMEOUT_SECONDS", gt=0)
+    main_be_service_key: SecretStr = Field(alias="MAIN_BE_SERVICE_KEY", min_length=1)
 
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")

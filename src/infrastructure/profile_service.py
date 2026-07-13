@@ -17,11 +17,13 @@ class ProfileServiceClient:
 
     async def complete(self, *, user_id: UUID, code: str) -> HHAccount:
         return HHAccount.model_validate(
-            await self._request("POST", "/internal/hh/oauth/complete", json={"user_id": str(user_id), "code": code})
+            await self._request(
+                "POST", "/internal/hh/oauth/complete", json={"code": code}, headers={"X-User-Id": str(user_id)}
+            )
         )
 
     async def list_accounts(self, *, user_id: UUID) -> list[HHAccount]:
-        data = await self._request("POST", "/internal/hh/accounts/list", json={"user_id": str(user_id)})
+        data = await self._request("POST", "/internal/hh/accounts/list", headers={"X-User-Id": str(user_id)})
         items = data.get("accounts", [])
         if not isinstance(items, list):
             raise ClientError("Profile-service вернул некорректный ответ")
@@ -29,18 +31,27 @@ class ProfileServiceClient:
 
     async def get_account(self, *, user_id: UUID, account_id: UUID) -> HHAccount | None:
         try:
-            data = await self._request("POST", f"/internal/hh/accounts/{account_id}", json={"user_id": str(user_id)})
+            data = await self._request(
+                "POST", f"/internal/hh/accounts/{account_id}", headers={"X-User-Id": str(user_id)}
+            )
         except _NotFound:
             return None
         return HHAccount.model_validate(data)
 
     async def delete_account(self, *, user_id: UUID, account_id: UUID) -> None:
-        await self._request("DELETE", f"/internal/hh/accounts/{account_id}", json={"user_id": str(user_id)})
+        await self._request("DELETE", f"/internal/hh/accounts/{account_id}", headers={"X-User-Id": str(user_id)})
 
-    async def _request(self, method: str, path: str, *, json: dict[str, str] | None = None) -> dict[str, object]:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, object]:
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.request(method, self.base_url + path, json=json) as response:
+                async with session.request(method, self.base_url + path, json=json, headers=headers) as response:
                     if response.status == 404:
                         raise _NotFound
                     if response.status >= 400:

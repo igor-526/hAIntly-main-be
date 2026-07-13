@@ -22,7 +22,7 @@ class Response:
 
 class Session:
     responses: list[Response] = []
-    calls: list[tuple[str, str, object]] = []
+    calls: list[tuple[str, str, object, object]] = []
 
     def __init__(self, **kwargs):
         pass
@@ -33,13 +33,13 @@ class Session:
     async def __aexit__(self, *args):
         return None
 
-    def request(self, method, url, *, json=None):
-        self.calls.append((method, url, json))
+    def request(self, method, url, *, json=None, headers=None):
+        self.calls.append((method, url, json, headers))
         return self.responses.pop(0)
 
 
 @pytest.mark.asyncio
-async def test_profile_client_typed_contract_has_user_uuid_body_and_no_auth_headers(monkeypatch) -> None:
+async def test_profile_client_typed_contract_uses_user_header_and_no_user_body(monkeypatch) -> None:
     monkeypatch.setattr("infrastructure.profile_service.aiohttp.ClientSession", Session)
     user_id, account_id = uuid4(), uuid4()
     payload = {
@@ -52,12 +52,23 @@ async def test_profile_client_typed_contract_has_user_uuid_body_and_no_auth_head
         "updated_at": None,
     }
     Session.calls = []
-    Session.responses = [Response(200, {"accounts": [payload]}), Response(200, payload), Response(204)]
+    Session.responses = [
+        Response(200, {"authorization_url": "https://hh.test/oauth"}),
+        Response(200, payload),
+        Response(200, {"accounts": [payload]}),
+        Response(200, payload),
+        Response(204),
+    ]
     client = ProfileServiceClient(base_url="http://profile", timeout_seconds=1)
+    assert await client.authorization_url(state="opaque") == "https://hh.test/oauth"
+    assert await client.complete(user_id=user_id, code="code") is not None
     assert len(await client.list_accounts(user_id=user_id)) == 1
     assert await client.get_account(user_id=user_id, account_id=account_id) is not None
     await client.delete_account(user_id=user_id, account_id=account_id)
-    assert all(call[2] == {"user_id": str(user_id)} for call in Session.calls)
+    authorization_call, complete_call, *account_calls = Session.calls
+    assert authorization_call[2:] == ({"state": "opaque"}, None)
+    assert complete_call[2:] == ({"code": "code"}, {"X-User-Id": str(user_id)})
+    assert all(call[2] is None and call[3] == {"X-User-Id": str(user_id)} for call in account_calls)
 
 
 @pytest.mark.asyncio
