@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from api import auth_router, hh_accounts_router
+from api.dictionaries import router as dictionaries_router
 from core.exceptions import AppError
 from settings import settings
 from utils.configure_sentry import configure_sentry
@@ -26,6 +27,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_title, debug=settings.debug, lifespan=lifespan)
 app.include_router(auth_router, prefix="/api")
 app.include_router(hh_accounts_router, prefix="/api")
+app.include_router(dictionaries_router, prefix="/api")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -46,8 +48,9 @@ async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
-    return JSONResponse(status_code=400, content={"detail": exc.errors()})
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    status_code = 422 if request.url.path.startswith("/api/dictionaries") else 400
+    return JSONResponse(status_code=status_code, content={"detail": exc.errors()})
 
 
 @app.exception_handler(IntegrityError)

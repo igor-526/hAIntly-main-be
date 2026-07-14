@@ -34,6 +34,8 @@ def test_main_be_service_key_accepts_valid_secret(monkeypatch: pytest.MonkeyPatc
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PROFILE_SERVICE_URL", "http://profile.invalid")
     monkeypatch.setenv("MAIN_BE_SERVICE_KEY", "runtime-test-secret")
+    monkeypatch.setenv("VACANCY_SERVICE_URL", "http://vacancy.invalid")
+    monkeypatch.setenv("VACANCY_SERVICE_TIMEOUT_SECONDS", "10")
 
     configured = Settings()
 
@@ -52,12 +54,12 @@ def test_profile_service_url_must_be_absolute_http_url(
         Settings()
 
 
-def test_profile_service_client_uses_environment_override(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_profile_service_client_uses_environment_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     overridden_url = "https://controlled-profile.example.test:9443/api"
     monkeypatch.setenv("PROFILE_SERVICE_URL", overridden_url)
+    monkeypatch.setenv("VACANCY_SERVICE_URL", "http://vacancy.invalid")
+    monkeypatch.setenv("VACANCY_SERVICE_TIMEOUT_SECONDS", "10")
 
     configured = Settings()
     client = ProfileServiceClient(

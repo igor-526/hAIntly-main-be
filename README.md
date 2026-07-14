@@ -33,3 +33,6 @@
 Будущая документация должна добавить setup/dev/test, миграции, env, OpenAPI, SSE lifecycle и межсервисную авторизацию.
 
 Общие границы проекта: [SERVICES.md](../../SERVICES.md).
+# Vacancy dictionaries
+
+Авторизованный read-only proxy доступен под `/api/dictionaries`. Адрес внутреннего `vacancy-service` и timeout задаются обязательными `VACANCY_SERVICE_URL` и `VACANCY_SERVICE_TIMEOUT_SECONDS`; UUID текущего пользователя передаётся только в `X-User-Id`.
