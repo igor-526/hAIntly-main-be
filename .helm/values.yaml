@@ -22,3 +22,8 @@ url: api.haintly.devil-on-the-wheel.ru
 image: ghcr.io/igor-526/haintly_main-be
 imagePullSecertName: ghcr-secret
 imageTag: latest
+
+migration:
+  enabled: true
+  command: ["uv", "run", "alembic", "-c", "alembic.ini", "upgrade", "head"]
+  workingDir: /app/src
