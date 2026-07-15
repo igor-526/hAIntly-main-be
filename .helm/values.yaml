@@ -1,0 +1,24 @@
+# Deployment settings
+name: haintly-main-be
+componentsLabel: haintly-main-be
+replicaCount: 1
+namespace: haintly
+
+# App settings
+secretName: haintly-main-be-secret
+containerPort: 8101
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Ingress settings
+url: api.haintly.devil-on-the-wheel.ru
+
+# Image settings
+image: ghcr.io/igor-526/haintly_main-be
+imagePullSecertName: ghcr-secret
+imageTag: latest
