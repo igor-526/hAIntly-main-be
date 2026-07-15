@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from api import auth_router, hh_accounts_router
 from api.dictionaries import router as dictionaries_router
 from api.filters import router as filters_router
+from api.vacancies import router as vacancies_router
 from core.exceptions import AppError
 from settings import settings
 from utils.configure_sentry import configure_sentry
@@ -30,6 +31,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(hh_accounts_router, prefix="/api")
 app.include_router(dictionaries_router, prefix="/api")
 app.include_router(filters_router, prefix="/api")
+app.include_router(vacancies_router, prefix="/api")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -51,7 +53,7 @@ async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-    status_code = 422 if request.url.path.startswith(("/api/dictionaries", "/api/filters")) else 400
+    status_code = 422 if request.url.path.startswith(("/api/dictionaries", "/api/filters", "/api/vacancies")) else 400
     return JSONResponse(status_code=status_code, content={"detail": exc.errors()})
 
 

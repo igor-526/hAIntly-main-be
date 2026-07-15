@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Cookie, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,13 +77,31 @@ async def get_hh_user_id(
     user: Annotated[UserOut, Depends(get_current_user)],
     users: Annotated[UserRepositoryProtocol, Depends(get_user_repository)],
 ) -> str:
+    return await resolve_hh_user_id(user)
+
+
+async def resolve_hh_user_id(user: UserOut) -> str:
+    from repositories import UserRepository
+    from utils.database import SessionFactory
+    async with SessionFactory() as session:
+        repo = UserRepository(session=session)
+        db_user = await repo.get_by_id(user_id=user.id)
+        if db_user is None or db_user.active_hh_account_id is None:
+            raise ClientError("Не выбран HH-аккаунт. Привяжите и выберите HH-аккаунт в настройках")
+        profiles = ProfileServiceClient(
+            base_url=str(settings.profile_service_url), timeout_seconds=settings.profile_service_timeout_seconds
+        )
+        account = await profiles.get_account(user_id=user.id, account_id=db_user.active_hh_account_id)
+        if account is None:
+            raise ClientError("Выбранный HH-аккаунт не найден")
+        return account.hh_user_id
+
+
+async def get_hh_account_id(
+    user: Annotated[UserOut, Depends(get_current_user)],
+    users: Annotated[UserRepositoryProtocol, Depends(get_user_repository)],
+) -> UUID:
     db_user = await users.get_by_id(user_id=user.id)
     if db_user is None or db_user.active_hh_account_id is None:
         raise ClientError("Не выбран HH-аккаунт. Привяжите и выберите HH-аккаунт в настройках")
-    profiles = ProfileServiceClient(
-        base_url=str(settings.profile_service_url), timeout_seconds=settings.profile_service_timeout_seconds
-    )
-    account = await profiles.get_account(user_id=user.id, account_id=db_user.active_hh_account_id)
-    if account is None:
-        raise ClientError("Выбранный HH-аккаунт не найден")
-    return account.hh_user_id
+    return db_user.active_hh_account_id

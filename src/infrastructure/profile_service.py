@@ -38,6 +38,9 @@ class ProfileServiceClient:
             return None
         return HHAccount.model_validate(data)
 
+    async def get_selected_account(self, *, user_id: UUID, account_id: UUID) -> HHAccount | None:
+        return await self.get_account(user_id=user_id, account_id=account_id)
+
     async def delete_account(self, *, user_id: UUID, account_id: UUID) -> None:
         await self._request("DELETE", f"/internal/hh/accounts/{account_id}", headers={"X-User-Id": str(user_id)})
 
