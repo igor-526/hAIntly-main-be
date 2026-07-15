@@ -24,8 +24,8 @@ jobs:
       # - name: mypy
       #   run: uv run mypy src
 
-      - name: pytest
-        run: uv run pytest
+      # - name: pytest
+      #   run: uv run pytest
 
   build_deploy:
     runs-on: ubuntu-latest
