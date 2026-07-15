@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Cookie, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.exceptions import InvalidCredentials
+from core.exceptions import ClientError, InvalidCredentials
 from core.protocols.repositories import RoleRepositoryProtocol, UserRepositoryProtocol
 from core.schemas import UserOut
 from core.services import AuthService, HHAccountsService, OAuthStateService
@@ -70,3 +70,19 @@ async def get_hh_accounts_service(
             base_url=str(settings.profile_service_url), timeout_seconds=settings.profile_service_timeout_seconds
         ),
     )
+
+
+async def get_hh_user_id(
+    user: Annotated[UserOut, Depends(get_current_user)],
+    users: Annotated[UserRepositoryProtocol, Depends(get_user_repository)],
+) -> str:
+    db_user = await users.get_by_id(user_id=user.id)
+    if db_user is None or db_user.active_hh_account_id is None:
+        raise ClientError("Не выбран HH-аккаунт. Привяжите и выберите HH-аккаунт в настройках")
+    profiles = ProfileServiceClient(
+        base_url=str(settings.profile_service_url), timeout_seconds=settings.profile_service_timeout_seconds
+    )
+    account = await profiles.get_account(user_id=user.id, account_id=db_user.active_hh_account_id)
+    if account is None:
+        raise ClientError("Выбранный HH-аккаунт не найден")
+    return account.hh_user_id
