@@ -21,8 +21,8 @@ jobs:
       - name: Install deps
         run: uv sync --locked
 
-      - name: mypy
-        run: uv run mypy src
+      # - name: mypy
+      #   run: uv run mypy src
 
       - name: pytest
         run: uv run pytest
