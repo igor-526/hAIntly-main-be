@@ -21,11 +21,11 @@ jobs:
       - name: Install deps
         run: uv sync --locked
 
-      # - name: mypy
-      #   run: uv run mypy src
+      - name: lint
+        run: make lint
 
-      # - name: pytest
-      #   run: uv run pytest
+      - name: test
+        run: make test
 
   build_deploy:
     runs-on: ubuntu-latest
