@@ -9,10 +9,27 @@ import pytest
 
 from infrastructure import ProfileServiceClient
 
+pytestmark = [pytest.mark.infrastructure, pytest.mark.asyncio]
 
-@pytest.mark.asyncio
+
+def _profile_service_paths() -> tuple[Path, Path]:
+    workspace_profile_root = Path(__file__).parents[3] / "profile-service"
+    profile_root = Path(os.environ.get("PROFILE_SERVICE_ROOT", workspace_profile_root)).expanduser().resolve()
+    profile_python = Path(os.environ.get("PROFILE_SERVICE_PYTHON", profile_root / ".venv/bin/python")).expanduser()
+    return profile_root, profile_python
+
+
 async def test_main_be_client_to_real_profile_routes_with_mock_hh() -> None:
-    profile_root = Path(__file__).parents[3] / "profile-service"
+    profile_root, profile_python = _profile_service_paths()
+    if not (profile_root / "tests/mock_hh_app.py").is_file():
+        pytest.fail(
+            "Не найден profile-service с tests/mock_hh_app.py. "
+            "Задайте PROFILE_SERVICE_ROOT или разместите checkout в HAIntly workspace."
+        )
+    if not profile_python.is_file():
+        pytest.fail(
+            "Не найден Python profile-service. Установите зависимости сервиса или задайте PROFILE_SERVICE_PYTHON."
+        )
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -24,7 +41,7 @@ async def test_main_be_client_to_real_profile_routes_with_mock_hh() -> None:
         "HH_CLIENT_SECRET": "mock",
     }
     command = [
-        str(profile_root / ".venv/bin/python"),
+        str(profile_python),
         "-m",
         "uvicorn",
         "mock_hh_app:app",
@@ -40,10 +57,13 @@ async def test_main_be_client_to_real_profile_routes_with_mock_hh() -> None:
         cwd=profile_root,
         env=env,
         stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
     )
     try:
-        for _ in range(50):
+        for _ in range(100):
+            if process.returncode is not None:
+                stderr = await process.stderr.read() if process.stderr else b""
+                pytest.fail(f"mock profile-service завершился при запуске: {stderr.decode().strip()}")
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(f"http://127.0.0.1:{port}/health") as response:
@@ -64,5 +84,6 @@ async def test_main_be_client_to_real_profile_routes_with_mock_hh() -> None:
         assert listed == [linked]
         assert fetched == linked
     finally:
-        process.terminate()
-        await asyncio.wait_for(process.wait(), timeout=5)
+        if process.returncode is None:
+            process.terminate()
+            await asyncio.wait_for(process.wait(), timeout=5)
