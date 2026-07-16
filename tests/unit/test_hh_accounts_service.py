@@ -32,6 +32,9 @@ class Profiles:
     async def get_account(self, *, user_id, account_id):
         return next((item for item in self.accounts if item.id == account_id), None)
 
+    async def get_selected_account(self, *, user_id, account_id):
+        return await self.get_account(user_id=user_id, account_id=account_id)
+
     async def delete_account(self, *, user_id, account_id):
         self.accounts = [item for item in self.accounts if item.id != account_id]
 

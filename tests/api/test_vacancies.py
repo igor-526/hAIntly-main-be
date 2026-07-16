@@ -14,8 +14,8 @@ def _user() -> UserOut:
     return UserOut(id=uuid4(), email="vacancies@example.com", roles=[])
 
 
-def _override(user: UserOut = None):
-    app.dependency_overrides[get_current_user] = lambda: (user or _user())
+def _override(user: UserOut | None = None):
+    app.dependency_overrides[get_current_user] = lambda: user or _user()
 
 
 def _clear():
@@ -23,6 +23,7 @@ def _clear():
 
 
 # --- Auth ---
+
 
 def test_vacancies_require_auth():
     assert TestClient(app).get("/api/vacancies").status_code == 401
@@ -33,6 +34,7 @@ def test_vacancy_detail_requires_auth():
 
 
 # --- Proxy search ---
+
 
 def test_search_proxies_params_and_context(monkeypatch):
     user = _user()
@@ -83,6 +85,7 @@ def test_search_proxies_multiple_values(monkeypatch):
 
 # --- Proxy detail ---
 
+
 def test_get_vacancy_proxies_context(monkeypatch):
     user = _user()
     vacancy_id = "12345"
@@ -100,6 +103,7 @@ def test_get_vacancy_proxies_context(monkeypatch):
 
 
 # --- Error mapping ---
+
 
 def test_search_maps_not_found(monkeypatch):
     _override()

@@ -85,9 +85,7 @@ async def update_preset(
     body = await request.json()
     client = _client()
     try:
-        return await client.filters_update(
-            preset_id=preset_id, user_id=user.id, hh_user_id=hh_user_id, body=body
-        )
+        return await client.filters_update(preset_id=preset_id, user_id=user.id, hh_user_id=hh_user_id, body=body)
     except VacancyNotFound:
         return JSONResponse(status_code=404, content={"detail": "Пресет не найден"})
     except VacancyValidationError as exc:

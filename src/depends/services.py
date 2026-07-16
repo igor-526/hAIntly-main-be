@@ -83,6 +83,7 @@ async def get_hh_user_id(
 async def resolve_hh_user_id(user: UserOut) -> str:
     from repositories import UserRepository
     from utils.database import SessionFactory
+
     async with SessionFactory() as session:
         repo = UserRepository(session=session)
         db_user = await repo.get_by_id(user_id=user.id)

@@ -1,5 +1,4 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -49,9 +48,7 @@ async def search_vacancies(
             return JSONResponse(status_code=400, content={"detail": "Для использования пресетов необходим HH-аккаунт"})
 
     try:
-        return await client.vacancies_search(
-            user_id=user.id, hh_user_id=hh_user_id, params=params
-        )
+        return await client.vacancies_search(user_id=user.id, hh_user_id=hh_user_id, params=params)
     except VacancyNotFound:
         return JSONResponse(status_code=404, content={"detail": "Вакансия не найдена"})
     except VacancyValidationError as exc:

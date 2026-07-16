@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 import aiohttp
@@ -47,32 +48,20 @@ class VacancyServiceClient:
                     data = await response.json()
                     if not isinstance(data, (dict, list)):
                         raise ClientError("Сервис справочников вернул некорректный ответ")
-                    return data
-        except (VacancyNotFound, VacancyValidationError):
+                    return cast(dict[str, object], data)
+        except VacancyNotFound, VacancyValidationError:
             raise
         except (aiohttp.ClientError, TimeoutError) as exc:
             raise ClientError("Сервис справочников временно недоступен") from exc
 
-    async def filters_list(
-        self, *, user_id: UUID, hh_user_id: str, params: dict[str, object]
-    ) -> dict[str, object]:
-        return await self._request(
-            "GET", "/internal/filters", user_id=user_id, hh_user_id=hh_user_id, params=params
-        )
+    async def filters_list(self, *, user_id: UUID, hh_user_id: str, params: dict[str, object]) -> dict[str, object]:
+        return await self._request("GET", "/internal/filters", user_id=user_id, hh_user_id=hh_user_id, params=params)
 
-    async def filters_get(
-        self, *, preset_id: UUID, user_id: UUID, hh_user_id: str
-    ) -> dict[str, object]:
-        return await self._request(
-            "GET", f"/internal/filters/{preset_id}", user_id=user_id, hh_user_id=hh_user_id
-        )
+    async def filters_get(self, *, preset_id: UUID, user_id: UUID, hh_user_id: str) -> dict[str, object]:
+        return await self._request("GET", f"/internal/filters/{preset_id}", user_id=user_id, hh_user_id=hh_user_id)
 
-    async def filters_create(
-        self, *, user_id: UUID, hh_user_id: str, body: dict[str, object]
-    ) -> dict[str, object]:
-        return await self._request(
-            "POST", "/internal/filters", user_id=user_id, hh_user_id=hh_user_id, json_body=body
-        )
+    async def filters_create(self, *, user_id: UUID, hh_user_id: str, body: dict[str, object]) -> dict[str, object]:
+        return await self._request("POST", "/internal/filters", user_id=user_id, hh_user_id=hh_user_id, json_body=body)
 
     async def filters_update(
         self, *, preset_id: UUID, user_id: UUID, hh_user_id: str, body: dict[str, object]
@@ -81,12 +70,8 @@ class VacancyServiceClient:
             "PATCH", f"/internal/filters/{preset_id}", user_id=user_id, hh_user_id=hh_user_id, json_body=body
         )
 
-    async def filters_delete(
-        self, *, preset_id: UUID, user_id: UUID, hh_user_id: str
-    ) -> None:
-        await self._request(
-            "DELETE", f"/internal/filters/{preset_id}", user_id=user_id, hh_user_id=hh_user_id
-        )
+    async def filters_delete(self, *, preset_id: UUID, user_id: UUID, hh_user_id: str) -> None:
+        await self._request("DELETE", f"/internal/filters/{preset_id}", user_id=user_id, hh_user_id=hh_user_id)
 
     async def vacancies_search(
         self, *, user_id: UUID, hh_user_id: str | None, params: dict[str, object]
@@ -95,12 +80,8 @@ class VacancyServiceClient:
             "GET", "/internal/vacancies", user_id=user_id, hh_user_id=hh_user_id, params=params
         )
 
-    async def vacancy_get(
-        self, *, user_id: UUID, vacancy_id: str
-    ) -> dict[str, object]:
-        return await self._vacancy_request(
-            "GET", f"/internal/vacancies/{vacancy_id}", user_id=user_id
-        )
+    async def vacancy_get(self, *, user_id: UUID, vacancy_id: str) -> dict[str, object]:
+        return await self._vacancy_request("GET", f"/internal/vacancies/{vacancy_id}", user_id=user_id)
 
     async def _request(
         self,
@@ -121,7 +102,11 @@ class VacancyServiceClient:
                     kwargs["params"] = {k: str(v) for k, v in params.items() if v is not None}
                 if json_body is not None:
                     kwargs["json"] = json_body
-                async with session.request(method, self.base_url + path, **kwargs) as response:  # type: ignore[arg-type]
+                async with session.request(
+                    method,
+                    self.base_url + path,
+                    **kwargs,  # type: ignore[arg-type]
+                ) as response:
                     if response.status == 404:
                         raise VacancyNotFound
                     if response.status == 422:
@@ -137,8 +122,8 @@ class VacancyServiceClient:
                     data = await response.json()
                     if not isinstance(data, (dict, list)):
                         raise ClientError("Сервис вакансий вернул некорректный ответ")
-                    return data
-        except (VacancyNotFound, VacancyValidationError):
+                    return cast(dict[str, object], data)
+        except VacancyNotFound, VacancyValidationError:
             raise
         except (aiohttp.ClientError, TimeoutError) as exc:
             raise ClientError("Сервис вакансий временно недоступен") from exc
@@ -160,7 +145,11 @@ class VacancyServiceClient:
                 kwargs: dict[str, object] = {"headers": headers}
                 if params is not None:
                     kwargs["params"] = _flat_params(params)
-                async with session.request(method, self.base_url + path, **kwargs) as response:  # type: ignore[arg-type]
+                async with session.request(
+                    method,
+                    self.base_url + path,
+                    **kwargs,  # type: ignore[arg-type]
+                ) as response:
                     if response.status == 404:
                         raise VacancyNotFound
                     if response.status == 422:
@@ -177,8 +166,8 @@ class VacancyServiceClient:
                     data = await response.json()
                     if not isinstance(data, (dict, list)):
                         raise ClientError("Сервис вакансий вернул некорректный ответ")
-                    return data
-        except (VacancyNotFound, VacancyValidationError, ClientError):
+                    return cast(dict[str, object], data)
+        except VacancyNotFound, VacancyValidationError, ClientError:
             raise
         except (aiohttp.ClientError, TimeoutError) as exc:
             raise ClientError("Сервис вакансий временно недоступен") from exc
